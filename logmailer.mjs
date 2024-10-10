@@ -6,7 +6,6 @@
 import here from "heretag"
 import YAML from "yaml"
 import nodemailer from "nodemailer"
-import { parseArgs } from "node:util"
 import { readFile } from "node:fs/promises"
 import { existsSync } from "node:fs"
 import { platform, hostname } from "node:os"
@@ -16,173 +15,17 @@ import { DateTime } from "luxon"
 const __dirname = import.meta.dirname
 const pkgpath = join(__dirname, "package.json")
 
-const args = parseArgs({
-  allowPositionals: true,
-  options: {
-    conf: {
-      type: "string",
-      short: "c",
-      default: "/etc/logmailer.yaml",
-    },
-    error: {
-      type: "string",
-      short: "e",
-      default: "0",
-    },
-    source: {
-      type: "string",
-      short: "s",
-      default: "CLI",
-    },
-    help: {
-      type: "boolean",
-      short: "h",
-    },
-    host: {
-      type: "string",
-      default: hostname(),
-    },
-    server: {
-      type: "string",
-    },
-    port: {
-      type: "string",
-    },
-    secure: {
-      type: "boolean",
-      default: true,
-    },
-    user: {
-      type: "string",
-    },
-    pass: {
-      type: "string",
-    },
-    plus: {
-      type: "boolean",
-    },
-    from: {
-      type: "string",
-    },
-    to: {
-      type: "string",
-    },
-    attach: {
-      type: "string",
-      short: "a",
-      multiple: true,
-      default: [],
-    },
-    document: {
-      type: "string",
-      short: "d",
-      multiple: true,
-      default: [],
-    },
-  },
-})
-
 const pkgdata = await readFile(pkgpath, {encoding: "utf-8"})
 const pkg = JSON.parse(pkgdata)
 
-let rc = {}
-if (existsSync(args.values.conf)) {
-  const data = await readFile(args.values.conf, {encoding: "utf-8"})
-  rc = YAML.parse(data) 
-}
-const conf = {
-  ...rc,
-  ...args.values,
-  date: DateTime.now().toISO(),
-  plat: platform(),
-  version: pkg.version,
-  subject: args.positionals[0],
-  documents: args.positionals.slice(1),
-}
-
-if (!conf.from) {
-  console.error("no email configured to send from")
-  process.exit(1)
-}
-if (!conf.to) {
-  console.error("no email configured to send to")
-  process.exit(1)
-}
-if (!conf.server) {
-  console.error("no mail server configured")
-  process.exit(1)
-}
-if (!conf.port) {
-  console.error("no port number configured")
-  process.exit(1)
-}
-if (!conf.user) {
-  console.error("no user configured")
-  process.exit(1)
-}
-if (!conf.pass) {
-  console.error("no password configured")
-  process.exit(1)
-}
-if (!conf.subject) {
-  console.error("no subject given")
-  process.exit(1)
-}
-
-try {
-  conf.error = parseInt(conf.error)
-} catch (e) {
-  console.error("invalid error level given")
-  process.exit(1)
-}
-
 const levels = [["TESTING", "TEST"], ["DEBUG", "DBG"], ["OK"], ["WARNING", "WRN"], ["ERROR", "ERR"]]
 
-if (conf.error < -2) conf.error = -2
-if (conf.error > 2) conf.error = 2
-
-conf.level = levels[conf.error + 2][0]
-conf.errorname = `${conf.error}:${conf.level}`
-conf.label = levels[conf.error + 2][1] || ""
-
-const sublab = conf.label ? ` ${conf.label}` : ""
-const subsrc = conf.source.toLowerCase() == "system" ? "" : ` ${conf.source}`
-
-conf.fullsub = `${conf.host}${subsrc}${sublab}: ${conf.subject}`
-conf.fullfrom = `"${conf.host}${subsrc}" <${conf.from}>`
-conf.fullto = conf.to
-if (conf.plus) {
-  const parts = conf.to.split("@")
-  parts[0] = `${parts[0]}+log+${conf.host}+${conf.source}`
-  conf.fullto = parts.join("@")
+const defaults = {
+  secure: true,
+  error: 0,
+  source: "CLI",
+  host: hostname(),
 }
-
-if (!Array.isArray(conf.attach)) conf.attach = [conf.attach]
-if (!Array.isArray(conf.document)) conf.document = [conf.document]
-if (!Array.isArray(conf.documents)) conf.documents = [conf.documents]
-
-conf.attachments = []
-for (let n = 0; n < conf.attach.length; n++) {
-  const path = conf.attach[n]
-  const filename = basename(path)
-  const content = await readFile(path, {encoding: "utf-8"})
-  conf.attachments.push({filename, content})
-}
-
-for (let n = 0; n < conf.document.length; n++) {
-  const data = await readFile(conf.document[n], {encoding: "utf-8"})
-  conf.documents.push(data)
-}
-
-const mailer = nodemailer.createTransport({
-  host: conf.server,
-  port: conf.port,
-  secure: conf.secure,
-  auth: {
-    user: conf.user,
-    pass: conf.pass,
-  },
-})
 
 const usage =()=> {
   console.log(here`
@@ -206,7 +49,7 @@ const usage =()=> {
   `)
 }
 
-const body = ()=> {
+const body =(conf)=> {
   console.log(conf.documents)
   const text = conf.documents.map(d=> {
     return here`
@@ -290,27 +133,131 @@ const body = ()=> {
   `
 }
 
-const metadata = {
-  version: conf.version,
-  host: conf.host,
-  source: conf.source,
-  error: conf.error,
-  level: conf.level,
-  date: conf.date,
-  subject: conf.subject,
-  text: conf.text,
+const configure =async(conf, ...args)=> {
+  let rc = {}
+  if (existsSync(conf.conf)) {
+    const data = await readFile(conf.conf, {encoding: "utf-8"})
+    rc = YAML.parse(data) 
+  }
+  conf = {
+    ...defaults,
+    ...rc,
+    ...conf,
+    date: DateTime.now().toISO(),
+    plat: platform(),
+    version: pkg.version,
+    subject: args[0],
+    documents: args.slice(1),
+  }
+
+  if (!conf.from) {
+    console.error("no email configured to send from")
+    process.exit(1)
+  }
+  if (!conf.to) {
+    console.error("no email configured to send to")
+    process.exit(1)
+  }
+  if (!conf.server) {
+    console.error("no mail server configured")
+    process.exit(1)
+  }
+  if (!conf.port) {
+    console.error("no port number configured")
+    process.exit(1)
+  }
+  if (!conf.user) {
+    console.error("no user configured")
+    process.exit(1)
+  }
+  if (!conf.pass) {
+    console.error("no password configured")
+    process.exit(1)
+  }
+  if (!conf.subject) {
+    console.error("no subject given")
+    process.exit(1)
+  }
+
+  try {
+  conf.error = parseInt(conf.error)
+  } catch (e) {
+    console.error("invalid error level given")
+    process.exit(1)
+  }
+
+  conf.error = Math.min(2, Math.max(-2, conf.error))
+
+  conf.level = levels[conf.error + 2][0]
+  conf.errorname = `${conf.error}:${conf.level}`
+  conf.label = levels[conf.error + 2][1] || ""
+
+  const sublab = conf.label ? ` ${conf.label}` : ""
+  const subsrc = conf.source.toLowerCase() == "system" ? "" : ` ${conf.source}`
+
+  conf.fullsub = `${conf.host}${subsrc}${sublab}: ${conf.subject}`
+  conf.fullfrom = `"${conf.host}${subsrc}" <${conf.from}>`
+  conf.fullto = conf.to
+  if (conf.plus) {
+    const parts = conf.to.split("@")
+    parts[0] = `${parts[0]}+log+${conf.host}+${conf.source}`
+    conf.fullto = parts.join("@")
+  }
+
+  if (!Array.isArray(conf.attach)) conf.attach = [conf.attach]
+  if (!Array.isArray(conf.document)) conf.document = [conf.document]
+  if (!Array.isArray(conf.documents)) conf.documents = [conf.documents]
+
+  conf.attachments = []
+
+  for (let n = 0; n < conf.attach.length; n++) {
+    const path = conf.attach[n]
+    const filename = basename(path)
+    const content = await readFile(path, {encoding: "utf-8"})
+    conf.attachments.push({filename, content})
+  }
+
+  for (let n = 0; n < conf.document.length; n++) {
+    const data = await readFile(conf.document[n], {encoding: "utf-8"})
+    conf.documents.push(data)
+  }
+
+  conf.metadata = {
+    version: conf.version,
+    host: conf.host,
+    source: conf.source,
+    error: conf.error,
+    level: conf.level,
+    date: conf.date,
+    subject: conf.subject,
+    text: conf.text,
+  }
+
+  return conf
 }
 
-const out = await mailer.sendMail({
-  from: conf.fullfrom,
-  to: conf.fullto,
-  subject: conf.fullsub,
-  text: conf.text,
-  html: body(),
-  attachments: [
-    {filename: "metadata.json", content: JSON.stringify(metadata)},
-    ...conf.attachments,
-  ],
-})
-
-console.log(`Sent mail: ${conf.from} -> ${conf.fullto} "${conf.fullsub}"`)
+export const logmailer =async(conf, subject, ...docs)=> {
+  conf = await configure(conf, subject, ...docs)
+  const mailer = nodemailer.createTransport({
+    host: conf.server,
+    port: conf.port,
+    secure: conf.secure,
+    auth: {
+      user: conf.user,
+      pass: conf.pass,
+    },
+  })
+  const html = body(conf)
+  const out = await mailer.sendMail({
+    from: conf.fullfrom,
+    to: conf.fullto,
+    subject: conf.fullsub,
+    text: conf.text,
+    html,
+    attachments: [
+      {filename: "metadata.json", content: JSON.stringify(conf.metadata)},
+      ...conf.attachments,
+    ],
+  })
+  console.log(`Sent mail: ${conf.from} -> ${conf.fullto} "${conf.fullsub}"`)
+}
