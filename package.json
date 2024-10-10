@@ -1,0 +1,28 @@
+{
+  "name": "logmailer",
+  "version": "1.0.0",
+  "description": "Simple tool to log to email",
+  "type": "module",
+  "main": "logmailer.mjs",
+  "bin": {
+    "logmailer": "./bin/logmailer.mjs"
+  },
+  "scripts": {
+    "test": "jasmine"
+  },
+  "keywords": [
+    "log",
+    "logging",
+    "email"
+  ],
+  "author": "0E9B061F",
+  "license": "MIT",
+  "dependencies": {
+    "@0e9b061f/mkv": "github:0e9b061f/mkv",
+    "heretag": "^1.1.8",
+    "jasmine": "^5.3.1",
+    "luxon": "^3.5.0",
+    "nodemailer": "^6.9.15",
+    "yaml": "^2.5.1"
+  }
+}
