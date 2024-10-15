@@ -1,8 +1,9 @@
 {
-  "name": "logmailer",
-  "version": "1.0.2",
+  "name": "@0e9b061f/logmailer",
+  "version": "1.0.3",
   "mkv": {
-    "before": ":wood:"
+    "before": ":wood:",
+    "name": "logmailer"
   },
   "description": "Simple tool to log to email",
   "type": "module",
