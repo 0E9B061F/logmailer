@@ -1,6 +1,9 @@
 {
   "name": "logmailer",
-  "version": "1.0.1",
+  "version": "1.0.2",
+  "mkv": {
+    "before": ":wood:"
+  },
   "description": "Simple tool to log to email",
   "type": "module",
   "main": "logmailer.mjs",
