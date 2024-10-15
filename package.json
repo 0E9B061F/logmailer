@@ -1,6 +1,6 @@
 {
   "name": "logmailer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Simple tool to log to email",
   "type": "module",
   "main": "logmailer.mjs",
@@ -8,7 +8,8 @@
     "logmailer": "./bin/logmailer.mjs"
   },
   "scripts": {
-    "test": "jasmine"
+    "test": "jasmine",
+    "mkv": "mkv"
   },
   "keywords": [
     "log",
