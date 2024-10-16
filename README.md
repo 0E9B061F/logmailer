@@ -1,4 +1,4 @@
-# :wood: **logmailer** v1.0.3
+# :wood: **logmailer** v1.0.4
 
 **logmailer** is a simple, configurable tool for logging to email. It can be used from the command line or as a Node.js library.
 

@@ -9,10 +9,11 @@ import nodemailer from "nodemailer"
 import { readFile } from "node:fs/promises"
 import { existsSync } from "node:fs"
 import { platform, hostname } from "node:os"
-import { join, basename } from "node:path"
+import { join, basename, dirname } from "node:path"
 import { DateTime } from "luxon"
-
-const __dirname = import.meta.dirname
+import { fileURLToPath } from 'node:url'
+    
+const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkgpath = join(__dirname, "package.json")
 
 const pkgdata = await readFile(pkgpath, {encoding: "utf-8"})

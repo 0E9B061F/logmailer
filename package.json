@@ -1,6 +1,6 @@
 {
   "name": "@0e9b061f/logmailer",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "mkv": {
     "before": ":wood:",
     "name": "logmailer"
