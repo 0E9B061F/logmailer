@@ -6,6 +6,7 @@
 
 import { parseArgs } from "node:util"
 import { logmailer } from "../logmailer.mjs"
+import { ConfigError } from "../lib/errors.mjs"
 
 const args = parseArgs({
   allowPositionals: true,
@@ -66,7 +67,23 @@ const args = parseArgs({
       multiple: true,
       default: [],
     },
+    both: {
+      type: "string",
+      short: "b",
+      multiple: true,
+      default: [],
+    },
   },
 })
 
-logmailer(args.values, ...args.positionals)
+try {
+  const conf = await logmailer(args.values, args.positionals[0], args.positionals.slice(1).join(" "))
+  console.log(`Sent mail: ${conf.from} -> ${conf.fullto} "${conf.fullsub}"`)
+} catch (e) {
+  if (e instanceof ConfigError) {
+    console.error(`Configuration error: ${e.message}`)
+    process.exit(1)
+  } else {
+    throw e
+  }
+}
